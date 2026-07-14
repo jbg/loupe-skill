@@ -58,6 +58,10 @@ Commit intentionally, push the branch, and open a draft PR containing:
 - validation commands and results
 - remaining limitations or rollout considerations
 
+Materialize the complete PR body as a Markdown file with real newline characters. Pass that file to GitHub with `gh pr create --body-file "$pr_body_file"` (or provide the same actual multiline text to a structured GitHub API). Never construct the body as a shell string containing `\n`, never use `echo` to interpret escapes, and never pass multiline Markdown through `--body`.
+
+Before opening the PR, inspect the body file and reject it if `rg -n -F '\n' "$pr_body_file"` finds literal backslash-`n` sequences that were intended as line breaks. After opening it, fetch the stored body with `gh pr view --json body,url` and verify that headings, paragraphs, and lists contain real line breaks. If the stored body is malformed, repair it immediately from the same file with `gh pr edit --body-file "$pr_body_file"` before updating audit issues or Project state.
+
 Update the Project item and all covered audit issues with the PR URL. Keep audit issues open at `PR open` until the agreed post-merge verification and closure step. Never merge the PR.
 
 ## WIP and follow-up
