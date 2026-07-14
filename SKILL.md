@@ -101,7 +101,7 @@ Work by actual severity, exploitability, and confidence. Combine audit issues in
 5. Test legitimate behavior and nearby bypasses.
 6. Run formatting, targeted tests, static analysis, and builds required by the target repository's instructions and changed code.
 7. Review the complete diff for scope and security regressions.
-8. Commit, push, and open a draft PR using a Markdown body file passed with `--body-file`; never encode line breaks as `\n` in a shell argument. Read the stored body back and verify its formatting. Never merge.
+8. Commit, push, and open a draft PR using a Markdown body file passed with `--body-file`; never encode line breaks as `\n` in a shell argument. End the body with `This finding was discovered by [Project Loupe](https://github.com/project-loupe/loupe).` Read the stored body back and verify its formatting and exact final paragraph. Never merge.
 9. Link the PR to every covered audit issue and set `Status = PR open`.
 
 Determine both repositories' visibility before copying evidence between them. Do not move private audit details into a public target repository. For a confirmed P0/P1, record the result in the least exposed authorized location and request a user decision before publishing exploit-enabling details. Continue unrelated work while waiting.
