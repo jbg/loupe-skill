@@ -51,6 +51,8 @@ Use full current-code paths and line numbers in prose evidence when practical.
 - `Not actionable`: current evidence rules out the claim or places it outside the target's supported security model.
 - `Needs review`: evidence is insufficient because a runtime, deployment, or product-policy fact is genuinely unresolved.
 
+Keep finding validity separate from remediation readiness. A finding may be `Confirmed` while its Project `Status` is `Human review` because the smallest adequate fix is a substantial feature or requires a product, UX, policy, compatibility, or architecture decision. Do not downgrade or close such a finding merely because the implementation is large. Record the exact decision needed in `proof_gap` or `recommended_action` and in the Project question field.
+
 Do not use low confidence to downgrade a finding. Use `Needs review` with a proof gap.
 
 ## Duplicate test
