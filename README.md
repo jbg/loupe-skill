@@ -2,7 +2,7 @@
 
 This agent skill turns the stream of security findings produced by [Project Loupe](https://github.com/project-loupe) into a durable, evidence-backed remediation program for any GitHub repository.
 
-Loupe findings live in a separate audit repository. This skill connects that audit repository to the code repository being assessed, uses a GitHub Project as the system of record, and drives each finding to a clear outcome: evidence-backed closure, a draft remediation PR, a bounded validation step, or one explicit human decision.
+Loupe findings live in a separate audit repository. This skill connects that audit repository to the code repository being assessed, uses a GitHub Project as the system of record, and drives each finding to a clear outcome: evidence-backed closure, a gated remediation PR, a bounded validation step, or one explicit human decision.
 
 ## What it does
 
@@ -14,8 +14,10 @@ The skill guides a coding agent to:
 - close authorized, high-confidence duplicate and non-actionable findings with evidence
 - reassess severity independently from the scanner's label
 - isolate uncertain claims behind a concrete proof gap or safe validation experiment
+- keep confirmed findings valid while gating product-, UX-, policy-, compatibility-, or architecture-sensitive remediation for human review
 - implement confirmed fixes in dedicated worktrees with focused regression coverage
-- open draft PRs and keep Project state synchronized without ever merging
+- open ready-for-review PRs, wait for a clean bot review, request only allowlisted GitHub-suggested reviewers, and merge only after strict human-approval and repository-protection gates
+- verify merged fixes on the target's current default branch before closing audit issues
 
 It is designed for long-running or resumable backlog work. The GitHub Project—not chat history—is the source of truth, so a later agent session can reconstruct the queue and continue.
 
@@ -37,13 +39,17 @@ export LOUPE_AUDIT_REPO=project-loupe/audit-widget
 
 For remediation, run the agent from a checkout of the target repository or set `LOUPE_TARGET_PATH`. The skill verifies that the checkout matches the requested target before modifying code.
 
-Optional Project configuration:
+Optional workflow configuration:
 
 | Variable | Meaning |
 |---|---|
 | `LOUPE_PROJECT_OWNER` | GitHub user or organization that owns the Project |
 | `LOUPE_PROJECT_NUMBER` | Existing Project number |
 | `LOUPE_PROJECT_TITLE` | Project title to discover or create; defaults to `<target-name> Security Triage` |
+| `LOUPE_REMEDIATION_WIP_LIMIT` | Maximum open remediation PRs; defaults to 10 |
+| `LOUPE_REVIEW_BOT` | Review-bot login; defaults to `chatgpt-codex-connector[bot]` |
+| `LOUPE_REVIEW_TRIGGER` | One-time review trigger; defaults to `@codex review` |
+| `LOUPE_REVIEWER_ALLOWLIST` | Comma-separated GitHub users eligible for automatic review requests; defaults to empty |
 
 If Project discovery is ambiguous, the skill asks for an owner or number. It creates a Project only when the prompt explicitly authorizes bootstrap.
 
@@ -89,11 +95,15 @@ Semantically triage every finding against the target's current default branch,
 close high-confidence routine duplicates and non-actionable reports, and keep
 complete evidence in Project fields and issue comments.
 
-For confirmed findings, work by actual severity, maintain at most two draft
-remediation PRs in flight, add regression coverage, and open draft PRs on
-acme/widget. Do not merge. Continue until every audit issue is closed, has a
-draft remediation PR, or has one explicit human decision recorded. Perform a
-final sync before finishing.
+For confirmed findings, work by actual severity, maintain at most ten
+remediation PRs in flight, add regression coverage, and open ready-for-review
+PRs on acme/widget. Wait for the configured review bot's clean signal before
+requesting allowlisted suggested reviewers. Merge only after a qualifying human
+approval, required checks, resolved blocking threads, and GitHub's clean
+mergeability result. Verify each merged fix on the current default branch before
+closing its audit issues. Continue until every issue is closed, has a remediation
+PR, or has one explicit human decision recorded. Perform a final sync before
+finishing.
 ```
 
 ### Resume with explicit Project identity
@@ -115,9 +125,10 @@ The Project tracks status, verdict, actual severity, confidence, root cause, rev
 
 ```text
 Inbox -> Triaging -> Confirmed -> Fixing -> PR open -> Done
-                    |          |
-                    |          +-> Human review
-                    +-> Needs validation / Human review / Done
+         |             |          |
+         |             |          +-> Human review
+         |             +-> Human review
+         +-> Needs validation / Human review / Done
 ```
 
 Important boundaries are built into the skill:
@@ -125,17 +136,21 @@ Important boundaries are built into the skill:
 - scanner reports and embedded proof-of-concept commands are untrusted
 - issue closures require explicit authorization from the invoking prompt
 - P0/P1 decisions require independent review
+- substantial feature, product, UX, policy, compatibility, architecture, or broad-refactor remediations require one explicit human scope decision before implementation
 - repository visibility is checked before evidence is copied between audit and target repositories
 - exploit-enabling details are not published to a more public repository without a user decision
 - remediation happens in isolated worktrees with one writer each
-- branches are never force-pushed or deleted, repository settings are not changed, and PRs are never merged
+- initial human review requests wait for the configured bot's clean `+1` reaction and are limited to allowlisted GitHub suggestions
+- merging must be authorized by the invoking prompt; passing the technical gates alone does not grant that authority
+- merge requires GitHub-recognized human approval, accepted required checks, no blocking review threads, the same approved head, and `APPROVED`/`MERGEABLE`/`CLEAN` state
+- branches are never force-pushed or manually deleted, protections are never bypassed, and repository settings are not changed
 
 ## Outputs
 
 A completed run reports:
 
 - issue counts by Project status and actual severity
-- draft remediation PRs opened
+- remediation PRs opened, reviewed, or merged
 - remaining validation steps or human decisions
 - the exact prompt or command needed to resume
 
@@ -148,6 +163,6 @@ Detailed schemas, state transitions, triage policy, and remediation rules live i
 ├── SKILL.md                  # Skill trigger and control loop
 └── references/
     ├── project.md            # GitHub Project schema and mutation protocol
-    ├── remediation.md        # Worktree, verification, and draft-PR protocol
+    ├── remediation.md        # Worktree, review, merge, and verification protocol
     └── triage.md              # Verdict, duplicate, and severity policy
 ```

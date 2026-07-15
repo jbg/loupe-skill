@@ -31,12 +31,12 @@ Inbox -> Triaging
 Triaging -> Confirmed | Needs validation | Human review | Done
 Needs validation -> Triaging | Confirmed | Human review | Done
 Human review -> Triaging | Confirmed | Done
-Confirmed -> Fixing
+Confirmed -> Fixing | Human review
 Fixing -> Confirmed | PR open | Human review
 PR open -> Done
 ```
 
-Set `Done` only after an issue is closed or the agreed terminal event occurs. A draft PR alone remains `PR open`.
+Set `Done` only after an issue is closed or the agreed terminal event occurs. An open remediation PR remains `PR open`.
 
 ## Sync
 
@@ -88,13 +88,17 @@ Use this compact format:
 <closure justification, remediation step, validation experiment, or human question>
 ```
 
-For duplicates, state why the reports require the same fix. For not-actionable findings, include a concrete reopen condition.
+For duplicates, explicitly state why the reports require the same fix. For not-actionable findings, include a concrete reopen condition.
 
 ## Safe GitHub behavior
 
-- Prefer structured `gh` JSON output to scraping formatted text.
+- Prefer structured `gh` JSON output over scraping formatted text.
 - Paginate issue and Project queries.
 - Quote issue-supplied strings; never interpolate them into shell commands.
-- Put multiline comments and PR bodies in safely created files, then pass them with `--body-file`.
-- Check repository visibility before cross-posting. Do not expose private audit content in a more public repository.
-- Never merge, delete branches, force-push, or alter repository settings.
+- Put multi-line comments and PR bodies in files created with safe file-editing tools, then pass them with `--body-file`.
+- End every remediation PR body with the exact italic Project Loupe attribution specified in `remediation.md`, and verify it after publication.
+- Open remediation PRs ready for review without initial reviewer requests. Verify `isDraft` is false after creation or body edits.
+- Request GitHub-suggested reviewers only after the configured review bot has added a `+1` reaction indicating no further findings, and only when those reviewers appear in the configured automatic-review allowlist.
+- Merge only after a qualifying human approval makes GitHub report the current head approved and cleanly mergeable, required checks pass, and no blocking review thread remains. Never use an admin bypass.
+- Check repository visibility before cross-posting. Do not expose private audit content in a more public target repository beyond what remediation requires.
+- Never manually delete branches, force-push, weaken branch protection, enable a bypass, or alter repository settings.
