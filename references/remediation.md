@@ -66,9 +66,9 @@ End every remediation PR body with this exact Markdown line:
 _This finding was discovered by [Project Loupe](https://github.com/project-loupe/loupe)._
 ```
 
-Write the multi-line PR body to a file using a safe file-editing tool and pass that file with `gh pr create --body-file`. Do not use `--draft`, `--reviewer`, or any separate initial review request. Do not pass JSON-escaped or `\\n`-encoded multi-line text through `--body`; shell quoting can preserve the backslashes and publish literal escape sequences.
+Write the multi-line PR body to a file using a safe file-editing tool. Prefer the REST pull-request endpoint with a safely created JSON request file passed to `gh api --input`; using `gh pr create --body-file "$pr_body_file"` is acceptable when repository-specific CLI behavior is required. Do not use `--draft`, `--reviewer`, or any separate initial review request. Do not pass JSON-escaped or `\\n`-encoded multi-line text through `--body`; shell quoting can preserve the backslashes and publish literal escape sequences.
 
-Before opening the PR, inspect the body file and reject it if `rg -n -F '\n' "$pr_body_file"` finds literal backslash-`n` sequences intended as line breaks. Verify that the attribution above is the final non-empty line. After creating or editing the PR, read the stored body and draft flag through structured GitHub output. Verify that the body contains real line breaks, renders as Markdown, ends with the exact attribution, and `isDraft` is false. If the stored body is malformed or the attribution is absent or misplaced, repair it immediately from the same file with `gh pr edit --body-file "$pr_body_file"` before updating audit issues or Project state.
+Before opening the PR, inspect the body file and reject it if `rg -n -F '\n' "$pr_body_file"` finds literal backslash-`n` sequences intended as line breaks. Verify that the attribution above is the final non-empty line. After creating or editing the PR, fetch it through `GET /repos/{owner}/{repo}/pulls/{number}`. Verify that the body contains real line breaks, renders as Markdown, ends with the exact attribution, and `draft` is false. If the stored body is malformed or the attribution is absent or misplaced, repair it through the REST pull-request endpoint using a safely created request file before updating audit issues or Project state.
 
 Do not request human reviewers when the PR is first opened. Update the Project item and all covered audit issues with the PR URL, and keep the issues open at `PR open` until gated merge and post-merge verification complete.
 
@@ -112,6 +112,6 @@ After a successful merge:
 
 ## WIP and follow-up
 
-Maintain at most ten open remediation PRs unless the user changes the limit. Check CI, bot reaction, suggested reviewers, approvals, unresolved threads, and merge state during each control-loop pass. Address focused feedback in the corresponding worktree, merge promptly when the full gate is satisfied, and do not let PR follow-up block triage of unrelated findings.
+Maintain at most ten open remediation PRs unless the user changes the limit. Check PR, CI, bot reaction, suggested reviewers, approvals, unresolved threads, and merge state through REST during each control-loop pass. Use GraphQL only for a specific datum that current REST does not expose, including the configured reviewer-suggestion query. Address focused feedback in the corresponding worktree, merge promptly when the full gate is satisfied, and do not let PR follow-up block triage of unrelated findings.
 
 When a PR cannot proceed, return the item to `Confirmed` or `Human review` with the exact blocker rather than leaving it ambiguously in `Fixing`.

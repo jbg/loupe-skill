@@ -28,10 +28,21 @@ Use these defaults unless the user overrides them:
 
 Resolve the target's default branch, visibility, and contribution rules dynamically. Read applicable `AGENTS.md`, `SECURITY.md`, and contributing guidance before evaluating findings or changing code. Preserve unrelated local changes.
 
+## Route GitHub access through REST
+
+Use the versioned REST API for every repeated GitHub operation. Invoke `gh api` with `X-GitHub-Api-Version: 2026-03-10` and follow the endpoint and caching protocol in [references/project.md](references/project.md).
+
+- Use REST for repository metadata, issues, comments, labels, pull requests, reviews, checks, reactions, Project discovery, Project fields, Project items, and Project item updates.
+- Do not use `gh project`, `gh api graphql`, or GraphQL-backed high-level `gh ... --json` reads in the control loop when a REST endpoint exists.
+- Resolve Project, field, option, and item IDs once per run and retain them only as an in-memory or disposable cache. GitHub remains authoritative.
+- Fetch a batch centrally before delegation. Give subagents the issue and code context they need; do not let each subagent reconstruct the Project independently.
+- Use GraphQL only after confirming the required operation has no REST equivalent in API version `2026-03-10`. Make the smallest query possible and record why the exception was necessary.
+- Inspect quotas through the REST `GET /rate_limit` endpoint. Do not spend GraphQL points querying its `rateLimit` object.
+
 ## Start or resume
 
 1. Confirm `gh auth status` can read both repositories. Project operations require the `project` scope; if absent, tell the user to run `gh auth refresh -s project` and continue only safe work that does not need it.
-2. Resolve the GitHub Project from `LOUPE_PROJECT_OWNER` and `LOUPE_PROJECT_NUMBER` when set. Otherwise search accessible Projects for `LOUPE_PROJECT_TITLE`, defaulting to `<target-repository-name> Security Triage`.
+2. Resolve the GitHub Project through the REST Projects endpoints from `LOUPE_PROJECT_OWNER` and `LOUPE_PROJECT_NUMBER` when set. Otherwise search accessible Projects for `LOUPE_PROJECT_TITLE`, defaulting to `<target-repository-name> Security Triage`.
 3. If no unique Project exists, ask for its owner or number. Create one only when the invoking prompt explicitly authorizes bootstrap.
 4. Read [references/project.md](references/project.md) before creating fields, syncing items, or mutating GitHub.
 5. Sync every open audit issue missing from the Project into `Inbox`.
@@ -59,7 +70,7 @@ Repeat until the definition of done is satisfied:
 8. Record the evidence comment and Project fields before closing an issue or starting remediation.
 9. Move genuine ambiguity or remediation that requires a substantial product, UX, policy, compatibility, or architecture decision to `Human review` with one explicit question, then continue other work.
 10. Start a fix only when the remediation WIP limit permits it.
-11. Checkpoint after each batch by rereading the changed Project items.
+11. Checkpoint after each batch by rereading only the changed Project items, then perform one full paginated sync at the batch boundary.
 
 Use parallel agents for triage, code tracing, and skeptical review. Use only one writer per remediation worktree, and never let agents edit the same files concurrently.
 
@@ -120,7 +131,7 @@ Before starting code, classify the smallest adequate remediation. A focused corr
 5. Test legitimate behavior and nearby bypasses.
 6. Run formatting, targeted tests, static analysis, and builds required by the target repository's instructions and changed code.
 7. Review the complete diff for scope and security regressions.
-8. Commit and push. Write every multi-line PR body to a file with a safe file-editing tool, end it with the required italic Project Loupe attribution from the remediation reference, and open the PR ready for review with `--body-file` and no initial reviewers. Verify GitHub stored real line breaks and the attribution and that `isDraft` is false. Never pass escaped multi-line text through `--body`.
+8. Commit and push. Write every multi-line PR body to a file with a safe file-editing tool, end it with the required italic Project Loupe attribution from the remediation reference, and open the PR ready for review with no initial reviewers. Prefer a safely created REST request passed through `gh api --input`; use `--body-file` when repository-specific CLI behavior is required. Verify GitHub stored real line breaks and the attribution and that the PR is not a draft. Never pass escaped multi-line text through `--body`.
 9. Link the PR to every covered audit issue and set `Status = PR open`.
 10. Monitor review-bot activity. If no bot activity exists 30 minutes after opening, post the configured review trigger exactly once. Address bot findings, then wait for the configured bot's `+1` reaction. Only after that clean signal request GitHub-suggested reviewers who are also in the configured automatic-review allowlist; never automatically request a non-allowlisted actor.
 11. After a qualifying human approval, merge only when all required checks pass, no unresolved blocking review thread remains, the approved head is current, and GitHub reports the PR `APPROVED`, `MERGEABLE`, and `CLEAN`. Use a repository-allowed non-admin merge method and never bypass protection.

@@ -9,6 +9,7 @@ Loupe findings live in a separate audit repository. This skill connects that aud
 The skill guides a coding agent to:
 
 - continuously sync new Loupe issues into a GitHub Project
+- use GitHub's versioned REST API for routine Project, issue, and pull-request work so GraphQL exhaustion does not stall the queue
 - trace each claim through current target code instead of trusting scanner output
 - distinguish true duplicates by root cause and required fix
 - close authorized, high-confidence duplicate and non-actionable findings with evidence
@@ -58,10 +59,13 @@ If Project discovery is ambiguous, the skill asks for an owner or number. It cre
 - a coding agent that supports `SKILL.md`-style skills and parallel subagents
 - Git and [GitHub CLI](https://cli.github.com/) authenticated for both repositories
 - GitHub CLI `project` scope for Project operations (`gh auth refresh -s project`)
+- GitHub CLI new enough to call API version `2026-03-10` through `gh api`
 - read access to the audit repository and read/write access appropriate to the requested target-repository work
 - a local target checkout for remediation work
 
 Repository instructions remain authoritative. The skill discovers the default branch and reads `AGENTS.md`, `SECURITY.md`, contribution guidance, and project-specific build/test configuration rather than assuming a language or toolchain.
+
+The skill uses REST API version `2026-03-10` for routine Project discovery, field and item reads, filtering, item insertion, and multi-field updates. It also prefers REST for issues and pull-request state. GraphQL is reserved for operations that have no current REST equivalent, so a depleted GraphQL bucket does not stop normal triage.
 
 ## Install
 
